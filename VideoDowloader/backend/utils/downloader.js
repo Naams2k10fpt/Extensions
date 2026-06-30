@@ -47,12 +47,22 @@ function getVideoInfo(url) {
 
     console.log(`[Downloader] Fetching info for: ${url}`);
     
-    // Command: yt-dlp --dump-json "url"
-    const ytDlpProcess = spawn(ytDlpPath, [
-      '--dump-json',
-      '--no-playlist', // Ensure we don't dump a whole playlist if a URL has a list param
-      url
-    ]);
+    const args = ['--dump-json', '--no-playlist'];
+    
+    // Check for cookies.txt file or environment browser cookies setting
+    const cookiesPathRoot = path.join(__dirname, '..', '..', 'cookies.txt');
+    const cookiesPathBackend = path.join(__dirname, '..', 'cookies.txt');
+    if (fs.existsSync(cookiesPathRoot)) {
+      args.push('--cookies', cookiesPathRoot);
+    } else if (fs.existsSync(cookiesPathBackend)) {
+      args.push('--cookies', cookiesPathBackend);
+    } else if (process.env.COOKIES_FROM_BROWSER) {
+      args.push('--cookies-from-browser', process.env.COOKIES_FROM_BROWSER);
+    }
+    
+    args.push(url);
+    
+    const ytDlpProcess = spawn(ytDlpPath, args);
 
     let stdoutData = '';
     let stderrData = '';
@@ -121,6 +131,17 @@ function downloadVideo(url, options = {}, progressCallback) {
     const resolution = options.resolution || 'best'; // 'best', '1080p', '720p', '480p'
 
     const args = [];
+
+    // Check for cookies.txt file or environment browser cookies setting
+    const cookiesPathRoot = path.join(__dirname, '..', '..', 'cookies.txt');
+    const cookiesPathBackend = path.join(__dirname, '..', 'cookies.txt');
+    if (fs.existsSync(cookiesPathRoot)) {
+      args.push('--cookies', cookiesPathRoot);
+    } else if (fs.existsSync(cookiesPathBackend)) {
+      args.push('--cookies', cookiesPathBackend);
+    } else if (process.env.COOKIES_FROM_BROWSER) {
+      args.push('--cookies-from-browser', process.env.COOKIES_FROM_BROWSER);
+    }
 
     // Add output template: e.g. path/to/youtube/%(title)s.%(ext)s
     // To avoid issues with weird characters, we can clean titles or use yt-dlp defaults
