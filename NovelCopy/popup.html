@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NovelCopy Settings</title>
+  <link rel="stylesheet" href="popup.css">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="popup-container">
+    <header class="header">
+      <div class="logo-area">
+        <span class="logo-icon">🚀</span>
+        <h1 class="title">Novel<span>Copy</span></h1>
+      </div>
+      <p class="subtitle">Trích xuất nội dung truyện sang Markdown</p>
+    </header>
+
+    <main class="settings-list">
+      <!-- Cấu hình định dạng ảnh -->
+      <div class="setting-item">
+        <div class="setting-info">
+          <span class="setting-label">Định dạng ảnh minh họa</span>
+          <span class="setting-desc">Dạng Markdown chuẩn hoặc ký hiệu văn bản</span>
+        </div>
+        <div class="select-wrapper">
+          <select id="image-format">
+            <option value="markdown">![img](url)</option>
+            <option value="text">[Ảnh: url]</option>
+            <option value="hidden">Ẩn ảnh</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Cấu hình kèm link nguồn -->
+      <div class="setting-item">
+        <div class="setting-info">
+          <span class="setting-label">Kèm liên kết nguồn</span>
+          <span class="setting-desc">Thêm URL ở dòng đầu tiên của Markdown</span>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="include-source" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <!-- Cấu hình kèm tiêu đề -->
+      <div class="setting-item">
+        <div class="setting-info">
+          <span class="setting-label">Kèm tiêu đề Novel / Tập</span>
+          <span class="setting-desc">Thêm tiêu đề chính làm tiêu đề h1/h2</span>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="include-title" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <!-- Cấu hình xóa dòng trống dư thừa -->
+      <div class="setting-item">
+        <div class="setting-info">
+          <span class="setting-label">Tự động làm sạch văn bản</span>
+          <span class="setting-desc">Xóa các dòng trống thừa & ký tự đặc biệt rác</span>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="clean-text" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+    </main>
+
+    <div class="action-section">
+      <button id="manual-select-btn" class="btn primary-btn">
+        <span class="btn-icon">🎯</span>
+        Chọn vùng thủ công (Click-to-Select)
+      </button>
+    </div>
+
+    <footer class="footer">
+      <div class="status-indicator">
+        <span class="dot pulse"></span>
+        <span class="status-text">Đang hoạt động</span>
+      </div>
+      <span class="version">v1.0.0</span>
+    </footer>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

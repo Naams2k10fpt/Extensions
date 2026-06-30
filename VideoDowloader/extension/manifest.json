@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Universal Video Downloader",
+  "version": "1.0.0",
+  "description": "Tải video YouTube, TikTok không logo, và Facebook trực tiếp về máy tính.",
+  "permissions": [
+    "activeTab",
+    "clipboardRead"
+  ],
+  "host_permissions": [
+    "http://localhost:4000/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icon.png"
+  },
+  "icons": {
+    "128": "icon.png"
+  }
+}

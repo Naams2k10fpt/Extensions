@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "NovelTrans",
+  "version": "1.0.0",
+  "description": "Dịch truyện tiểu thuyết song ngữ tối ưu hóa ngữ cảnh và xưng hô sử dụng Gemini API.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup/popup.html"
+  },
+  "options_page": "options/options.html",
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "content/content.js"
+      ],
+      "css": [
+        "content/content.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

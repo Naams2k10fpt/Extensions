@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "MangaDex ZIP Downloader",
+  "version": "1.0.0",
+  "description": "Tải chapter truyện từ MangaDex và nén thành file ZIP tự động.",
+  "permissions": [
+    "activeTab",
+    "downloads",
+    "storage"
+  ],
+  "host_permissions": [
+    "*://*.mangadex.org/*",
+    "*://*.mangadex.network/*",
+    "*://*.mangadex.dev/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.mangadex.org/chapter/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  }
+}

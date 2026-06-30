@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MangaDex ZIP Downloader</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <span class="logo-icon">📥</span>
+        <h1>MangaDex Downloader</h1>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="content">
+      <!-- 1. Trạng thái Không ở trang truyện -->
+      <div id="state-not-supported" class="state-container hidden">
+        <div class="info-card">
+          <p class="warning-text">⚠️ Không phát hiện trang đọc truyện MangaDex.</p>
+          <p class="desc-text">Vui lòng mở một chapter trên trang <strong>mangadex.org</strong> để sử dụng extension.</p>
+          <a href="https://mangadex.org" target="_blank" class="btn-link">Truy cập MangaDex</a>
+        </div>
+      </div>
+
+      <!-- 2. Trạng thái Sẵn sàng tải -->
+      <div id="state-supported" class="state-container hidden">
+        <div class="manga-info">
+          <h2 id="manga-title">Đang tải thông tin truyện...</h2>
+          <p id="chapter-title" class="chapter-sub">Chapter...</p>
+        </div>
+
+        <!-- Cấu hình chất lượng -->
+        <div id="download-settings" class="settings-group">
+          <span class="settings-label">Chất lượng hình ảnh:</span>
+          <div class="quality-selector">
+            <label class="quality-option">
+              <input type="radio" name="quality" value="original" checked>
+              <span class="radio-card">
+                <span class="title">Gốc</span>
+                <span class="desc">Độ phân giải cao</span>
+              </span>
+            </label>
+            <label class="quality-option">
+              <input type="radio" name="quality" value="saver">
+              <span class="radio-card">
+                <span class="title">Saver</span>
+                <span class="desc">Tiết kiệm data</span>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Tiến trình tải -->
+        <div id="progress-container" class="progress-section hidden">
+          <div class="progress-info">
+            <span id="progress-status">Đang chuẩn bị tải...</span>
+            <span id="progress-percent">0%</span>
+          </div>
+          <div class="progress-bar-bg">
+            <div id="progress-bar-fill" class="progress-bar-fill" style="width: 0%"></div>
+          </div>
+          <div id="progress-detail" class="progress-detail">Trang 0/0</div>
+        </div>
+
+        <!-- Trạng thái lỗi -->
+        <div id="error-container" class="error-section hidden">
+          <p id="error-message">Đã xảy ra lỗi không xác định.</p>
+        </div>
+
+        <!-- Nút Hành động -->
+        <div class="action-section">
+          <button id="btn-download" class="btn btn-primary">Tải Chapter (ZIP)</button>
+          <button id="btn-cancel" class="btn btn-secondary hidden">Hủy tải xuống</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <span>MangaDex ZIP Downloader v1.0.0</span>
+    </footer>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,331 @@
+/* Popup Styles - MangaDex Downloader */
+
+:root {
+  --bg-color-1: #121216;
+  --bg-color-2: #1e1e26;
+  --bg-card: #252530;
+  --primary-color: #ff6740;
+  --primary-hover: #e65100;
+  --text-main: #ffffff;
+  --text-sub: #a0a0b0;
+  --success-color: #4caf50;
+  --error-color: #f44336;
+  --border-radius: 12px;
+  --transition-speed: 0.25s;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: linear-gradient(135deg, var(--bg-color-1), #161620);
+  color: var(--text-main);
+  width: 350px;
+  min-height: 220px;
+  overflow-x: hidden;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+}
+
+/* Header */
+.header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logo-icon {
+  font-size: 20px;
+}
+
+.logo h1 {
+  font-size: 16px;
+  font-weight: 700;
+  background: linear-gradient(90deg, #ffffff, var(--primary-color));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Main Content */
+.content {
+  flex-grow: 1;
+}
+
+.state-container {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Info Card (Not supported page) */
+.info-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  border-radius: var(--border-radius);
+  padding: 16px;
+  text-align: center;
+}
+
+.warning-text {
+  color: #ffb300;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.desc-text {
+  font-size: 12.5px;
+  color: var(--text-sub);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.btn-link {
+  display: inline-block;
+  background: rgba(255, 103, 64, 0.15);
+  color: var(--primary-color);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 103, 64, 0.3);
+  transition: all var(--transition-speed);
+}
+
+.btn-link:hover {
+  background: var(--primary-color);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+/* Manga Info */
+.manga-info {
+  background: rgba(255, 255, 255, 0.04);
+  border-left: 3px solid var(--primary-color);
+  padding: 10px 12px;
+  border-radius: 4px 8px 8px 4px;
+  margin-bottom: 16px;
+}
+
+.manga-info h2 {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chapter-sub {
+  font-size: 12px;
+  color: var(--text-sub);
+  margin-top: 4px;
+}
+
+/* Settings Group */
+.settings-group {
+  margin-bottom: 20px;
+}
+
+.settings-label {
+  display: block;
+  font-size: 12.5px;
+  color: var(--text-sub);
+  margin-bottom: 8px;
+}
+
+.quality-selector {
+  display: flex;
+  gap: 12px;
+}
+
+.quality-option {
+  flex: 1;
+  cursor: pointer;
+}
+
+.quality-option input {
+  display: none;
+}
+
+.radio-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--border-radius);
+  padding: 10px;
+  text-align: center;
+  transition: all var(--transition-speed);
+}
+
+.radio-card .title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 2px;
+}
+
+.radio-card .desc {
+  font-size: 10px;
+  color: var(--text-sub);
+}
+
+.quality-option input:checked + .radio-card {
+  border-color: var(--primary-color);
+  background: rgba(255, 103, 64, 0.08);
+  box-shadow: 0 0 10px rgba(255, 103, 64, 0.15);
+}
+
+/* Action Buttons */
+.action-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.btn {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  border-radius: var(--border-radius);
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-speed);
+  text-align: center;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(255, 103, 64, 0.3);
+}
+
+.btn-primary:hover {
+  transform: translateY(-1.5px);
+  box-shadow: 0 6px 16px rgba(255, 103, 64, 0.4);
+}
+
+.btn-primary:disabled {
+  background: #3a3a48;
+  color: #6a6a7c;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.btn-secondary {
+  background: rgba(244, 67, 54, 0.1);
+  border: 1px solid rgba(244, 67, 54, 0.3);
+  color: var(--error-color);
+}
+
+.btn-secondary:hover {
+  background: rgba(244, 67, 54, 0.2);
+  color: #ffffff;
+}
+
+/* Progress Section */
+.progress-section {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--border-radius);
+  padding: 12px;
+  margin-bottom: 16px;
+  animation: slideDown 0.3s ease-out;
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+#progress-status {
+  color: var(--text-main);
+}
+
+#progress-percent {
+  color: var(--primary-color);
+}
+
+.progress-bar-bg {
+  background: rgba(255, 255, 255, 0.08);
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.progress-bar-fill {
+  background: linear-gradient(90deg, var(--primary-color), #ff9100);
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.progress-detail {
+  font-size: 10.5px;
+  color: var(--text-sub);
+  text-align: right;
+}
+
+/* Error Section */
+.error-section {
+  background: rgba(244, 67, 54, 0.08);
+  border: 1px solid rgba(244, 67, 54, 0.2);
+  border-radius: var(--border-radius);
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  color: #ff7970;
+  font-size: 12px;
+  line-height: 1.4;
+  animation: slideDown 0.3s ease-out;
+}
+
+/* Footer */
+.footer {
+  margin-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 8px;
+  text-align: center;
+}
+
+.footer span {
+  font-size: 9.5px;
+  color: rgba(255, 255, 255, 0.25);
+}
+
+/* Utilities */
+.hidden {
+  display: none !important;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
