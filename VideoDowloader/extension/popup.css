@@ -343,6 +343,11 @@ main {
   color: white;
 }
 
+.platform-badge.twitter {
+  background: #1d9bf0;
+  color: white;
+}
+
 .platform-badge.other {
   background: #475569;
   color: white;

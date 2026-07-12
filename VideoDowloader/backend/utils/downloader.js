@@ -19,6 +19,8 @@ function getPlatform(url) {
     return 'tiktok';
   } else if (lowercaseUrl.includes('facebook.com') || lowercaseUrl.includes('fb.watch') || lowercaseUrl.includes('fb.com')) {
     return 'facebook';
+  } else if (lowercaseUrl.includes('twitter.com') || lowercaseUrl.includes('x.com')) {
+    return 'twitter';
   }
   return 'other';
 }

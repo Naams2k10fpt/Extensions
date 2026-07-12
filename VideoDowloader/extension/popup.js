@@ -85,7 +85,9 @@ function autoFillCurrentTabUrl() {
                           lowercaseUrl.includes('tiktok.com') || 
                           lowercaseUrl.includes('facebook.com') ||
                           lowercaseUrl.includes('fb.watch') ||
-                          lowercaseUrl.includes('fb.com');
+                          lowercaseUrl.includes('fb.com') ||
+                          lowercaseUrl.includes('twitter.com') ||
+                          lowercaseUrl.includes('x.com');
 
       if (isVideoSite) {
         videoUrlInput.value = url;
@@ -211,6 +213,8 @@ async function analyzeUrl() {
       platformBadge.textContent = 'TikTok';
     } else if (data.platform === 'facebook') {
       platformBadge.textContent = 'Facebook';
+    } else if (data.platform === 'twitter') {
+      platformBadge.textContent = 'X (Twitter)';
     } else {
       platformBadge.textContent = 'Video';
     }
