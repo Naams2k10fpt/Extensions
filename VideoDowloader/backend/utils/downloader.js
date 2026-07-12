@@ -146,8 +146,9 @@ function downloadVideo(url, options = {}, progressCallback) {
     }
 
     // Add output template: e.g. path/to/youtube/%(title)s.%(ext)s
-    // To avoid issues with weird characters, we can clean titles or use yt-dlp defaults
-    args.push('-o', path.join(platformDir, '%(title)s.%(ext)s'));
+    // If format is GIF, we download to a temporary mp4 file first
+    const outputFileName = formatOption === 'gif' ? 'temp_%(title)s.%(ext)s' : '%(title)s.%(ext)s';
+    args.push('-o', path.join(platformDir, outputFileName));
     
     // Add ffmpeg location
     args.push('--ffmpeg-location', ffmpegDir);
@@ -158,6 +159,16 @@ function downloadVideo(url, options = {}, progressCallback) {
       args.push('-x');
       args.push('--audio-format', 'mp3');
       args.push('--audio-quality', '0'); // Best quality MP3
+    } else if (formatOption === 'gif') {
+      // For GIF conversion, we download as MP4 video (audio not required, but default merge is safe)
+      if (platform !== 'youtube') {
+        args.push('-f', 'bv*+ba/b');
+        args.push('--merge-output-format', 'mp4');
+      } else {
+        // YouTube: 720p is plenty for GIF conversion (saves download time)
+        args.push('-f', 'bv*[height<=720][ext=mp4]+ba[ext=m4a]/b[height<=720][ext=mp4] / bv*[height<=720]+ba/b[height<=720]');
+        args.push('--merge-output-format', 'mp4');
+      }
     } else {
       // MP4 format
       if (platform !== 'youtube') {
@@ -257,13 +268,75 @@ function downloadVideo(url, options = {}, progressCallback) {
       }
 
       console.log(`[Downloader] Download process completed successfully.`);
-      progressCallback({
-        status: 'completed',
-        progress: 100,
-        message: 'Download completed successfully!',
-        filePath: finalFilePath || path.join(platformDir, 'Unknown')
-      });
-      resolve(finalFilePath);
+      
+      // Handle GIF Conversion
+      if (formatOption === 'gif') {
+        if (!finalFilePath || !fs.existsSync(finalFilePath)) {
+          return reject(new Error('Downloaded video file not found for GIF conversion.'));
+        }
+
+        const dir = path.dirname(finalFilePath);
+        const ext = path.extname(finalFilePath);
+        let base = path.basename(finalFilePath, ext);
+        if (base.startsWith('temp_')) {
+          base = base.substring(5);
+        }
+        const finalGifPath = path.join(dir, `${base}.gif`);
+
+        progressCallback({
+          status: 'converting',
+          progress: 99,
+          message: 'Converting video to high-quality GIF...'
+        });
+
+        console.log(`[Downloader] Converting ${finalFilePath} to ${finalGifPath} using ffmpeg...`);
+        
+        // ffmpeg command for high-quality loopable GIF using custom palette
+        const ffmpegProcess = spawn(ffmpegPath, [
+          '-y',
+          '-i', finalFilePath,
+          '-vf', 'fps=15,scale=480:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse',
+          '-loop', '0',
+          finalGifPath
+        ]);
+
+        let ffmpegErr = '';
+        ffmpegProcess.stderr.on('data', (data) => {
+          ffmpegErr += data.toString();
+        });
+
+        ffmpegProcess.on('close', (ffmpegCode) => {
+          // Clean up the temporary download file
+          try {
+            fs.unlinkSync(finalFilePath);
+            console.log(`[Downloader] Cleaned up temporary video: ${finalFilePath}`);
+          } catch (delErr) {
+            console.error(`[Downloader] Failed to delete temp video:`, delErr.message);
+          }
+
+          if (ffmpegCode !== 0) {
+            console.error(`[Downloader] ffmpeg conversion failed: ${ffmpegErr}`);
+            return reject(new Error(`Failed to convert to GIF: ${ffmpegErr.split('\n')[0] || 'Unknown ffmpeg error'}`));
+          }
+
+          progressCallback({
+            status: 'completed',
+            progress: 100,
+            message: 'Converted to GIF successfully!',
+            filePath: finalGifPath
+          });
+          resolve(finalGifPath);
+        });
+      } else {
+        // Normal MP4 or MP3 download completed
+        progressCallback({
+          status: 'completed',
+          progress: 100,
+          message: 'Download completed successfully!',
+          filePath: finalFilePath || path.join(platformDir, 'Unknown')
+        });
+        resolve(finalFilePath);
+      }
     });
   });
 }

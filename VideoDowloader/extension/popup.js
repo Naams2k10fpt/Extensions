@@ -114,7 +114,7 @@ function setupEventListeners() {
 
   // Format selection change
   selectFormat.addEventListener('change', () => {
-    if (selectFormat.value === 'mp3' || currentPlatform !== 'youtube') {
+    if (selectFormat.value === 'mp3' || selectFormat.value === 'gif' || currentPlatform !== 'youtube') {
       resolutionRow.classList.add('hidden');
     } else {
       resolutionRow.classList.remove('hidden');
