@@ -144,11 +144,8 @@ function downloadVideo(url, options = {}, progressCallback) {
     const resolution = options.resolution || 'best'; // 'best', '1080p', '720p', '480p'
     const downloadId = options.downloadId || Date.now().toString();
 
-    // Determine if video needs transcoding (e.g. TikTok uses H.265/HE-AAC which has compatibility issues)
+    // Determine if video needs transcoding (disabled to keep original file)
     let needsTranscoding = false;
-    if (formatOption === 'mp4' && platform === 'tiktok') {
-      needsTranscoding = true;
-    }
 
     // Fixed ASCII paths for downloads to prevent Unicode/Emoji encoding issues on Windows
     const tempFileTemplate = path.join(platformDir, `temp_${downloadId}.%(ext)s`);
