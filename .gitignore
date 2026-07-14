@@ -21,3 +21,10 @@ desktop.ini
 # Logs
 logs
 *.log
+
+# Downloaded media files (temp and tests)
+VideoDowloader/backend/*.mp4
+VideoDowloader/backend/*.mp3
+VideoDowloader/backend/*.gif
+VideoDowloader/backend/*.webm
+VideoDowloader/backend/temp_*
