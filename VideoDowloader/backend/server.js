@@ -65,7 +65,7 @@ app.post('/api/download', async (req, res) => {
   };
 
   // Start download in background
-  downloadVideo(url, { format, resolution }, (progressData) => {
+  downloadVideo(url, { format, resolution, downloadId }, (progressData) => {
     // Progress Callback
     if (activeDownloads[downloadId]) {
       activeDownloads[downloadId].progress = progressData.progress;

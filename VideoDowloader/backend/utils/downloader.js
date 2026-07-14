@@ -109,7 +109,7 @@ function getVideoInfo(url) {
 
 // Download video/audio
 function downloadVideo(url, options = {}, progressCallback) {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     const ytDlpPath = getCustomYtDlpPath();
     const ffmpegPath = ffmpeg;
     const ffmpegDir = path.dirname(ffmpegPath);
@@ -129,14 +129,34 @@ function downloadVideo(url, options = {}, progressCallback) {
 
     console.log(`[Downloader] Target download folder: ${platformDir}`);
 
-    const formatOption = options.format || 'mp4'; // 'mp4' or 'mp3'
+    // Fetch video info to get metadata (especially title)
+    let title = 'video';
+    try {
+      const info = await getVideoInfo(url);
+      title = info.title || 'video';
+    } catch (err) {
+      console.warn('[Downloader] Failed to get video info for title, using default name:', err.message);
+    }
+    
+    // Clean title for Windows filesystem compatibility
+    const cleanTitle = title.replace(/[\\/:*?"<>|]/g, '_').trim();
+    const formatOption = options.format || 'mp4'; // 'mp4', 'mp3', 'gif'
     const resolution = options.resolution || 'best'; // 'best', '1080p', '720p', '480p'
+    const downloadId = options.downloadId || Date.now().toString();
 
     // Determine if video needs transcoding (e.g. TikTok uses H.265/HE-AAC which has compatibility issues)
     let needsTranscoding = false;
     if (formatOption === 'mp4' && platform === 'tiktok') {
       needsTranscoding = true;
     }
+
+    // Fixed ASCII paths for downloads to prevent Unicode/Emoji encoding issues on Windows
+    const tempFileTemplate = path.join(platformDir, `temp_${downloadId}.%(ext)s`);
+    const tempFilePathMp4 = path.join(platformDir, `temp_${downloadId}.mp4`);
+    const tempFilePathMp3 = path.join(platformDir, `temp_${downloadId}.mp3`);
+    
+    const finalExt = formatOption === 'mp3' ? 'mp3' : (formatOption === 'gif' ? 'gif' : 'mp4');
+    const finalFilePath = path.join(platformDir, `${cleanTitle}.${finalExt}`);
 
     const args = [];
 
@@ -151,10 +171,8 @@ function downloadVideo(url, options = {}, progressCallback) {
       args.push('--cookies-from-browser', process.env.COOKIES_FROM_BROWSER);
     }
 
-    // Add output template: e.g. path/to/youtube/%(title)s.%(ext)s
-    // If format is GIF or needs transcoding, we download to a temporary mp4 file first
-    const outputFileName = (formatOption === 'gif' || needsTranscoding) ? 'temp_%(title)s.%(ext)s' : '%(title)s.%(ext)s';
-    args.push('-o', path.join(platformDir, outputFileName));
+    // Add output template using clean ASCII ID
+    args.push('-o', tempFileTemplate);
     
     // Add ffmpeg location
     args.push('--ffmpeg-location', ffmpegDir);
@@ -213,12 +231,9 @@ function downloadVideo(url, options = {}, progressCallback) {
     const ytDlpProcess = spawn(ytDlpPath, args);
     let lastPercent = 0;
     let isExtractingOrMerging = false;
-    let finalFilePath = '';
-    let stdoutAccumulated = '';
 
     ytDlpProcess.stdout.on('data', (data) => {
       const output = data.toString();
-      stdoutAccumulated += output;
 
       // Look for download percentage: "[download]  12.3% of..."
       const progressMatch = output.match(/\[download\]\s+(\d+(?:\.\d+)?)%/);
@@ -232,18 +247,6 @@ function downloadVideo(url, options = {}, progressCallback) {
             message: `Downloading: ${percent.toFixed(1)}%`
           });
         }
-      }
-
-      // Look for destination file path (useful to know where it saved)
-      // We check on accumulated stdout to prevent missing lines due to chunk boundaries,
-      // and support the "already been downloaded" case.
-      const destMatch = 
-        stdoutAccumulated.match(/\[download\] Destination: (.+)/) || 
-        stdoutAccumulated.match(/\[Merge\] Merging formats into "(.+)"/) || 
-        stdoutAccumulated.match(/\[ExtractAudio\] Destination: (.+)/) ||
-        stdoutAccumulated.match(/\[download\] (.+) has already been downloaded/);
-      if (destMatch) {
-        finalFilePath = destMatch[1].trim().split('\n')[0].replace(/\r$/, '');
       }
 
       // Check if it's merging or extracting audio
@@ -271,7 +274,6 @@ function downloadVideo(url, options = {}, progressCallback) {
     let errorOutput = '';
     ytDlpProcess.stderr.on('data', (data) => {
       errorOutput += data.toString();
-      // stderr can also show warnings, but we log it
       console.warn(`[Downloader yt-dlp stderr]: ${data.toString().trim()}`);
     });
 
@@ -283,19 +285,46 @@ function downloadVideo(url, options = {}, progressCallback) {
 
       console.log(`[Downloader] Download process completed successfully.`);
       
-      // Handle GIF Conversion
-      if (formatOption === 'gif') {
-        if (!finalFilePath || !fs.existsSync(finalFilePath)) {
-          return reject(new Error('Downloaded video file not found for GIF conversion.'));
+      // 1. Handle MP3 conversion rename
+      if (formatOption === 'mp3') {
+        if (!fs.existsSync(tempFilePathMp3)) {
+          if (fs.existsSync(finalFilePath)) {
+            progressCallback({
+              status: 'completed',
+              progress: 100,
+              message: 'Download completed successfully!',
+              filePath: finalFilePath
+            });
+            return resolve(finalFilePath);
+          }
+          return reject(new Error('Downloaded MP3 file not found.'));
         }
 
-        const dir = path.dirname(finalFilePath);
-        const ext = path.extname(finalFilePath);
-        let base = path.basename(finalFilePath, ext);
-        if (base.startsWith('temp_')) {
-          base = base.substring(5);
+        try {
+          if (fs.existsSync(finalFilePath)) {
+            fs.unlinkSync(finalFilePath);
+          }
+          fs.renameSync(tempFilePathMp3, finalFilePath);
+          console.log(`[Downloader] Renamed ${tempFilePathMp3} to ${finalFilePath}`);
+        } catch (renameErr) {
+          console.error(`[Downloader] Rename failed:`, renameErr.message);
+          return reject(renameErr);
         }
-        const finalGifPath = path.join(dir, `${base}.gif`);
+
+        progressCallback({
+          status: 'completed',
+          progress: 100,
+          message: 'Download completed successfully!',
+          filePath: finalFilePath
+        });
+        return resolve(finalFilePath);
+      }
+
+      // 2. Handle GIF Conversion
+      if (formatOption === 'gif') {
+        if (!fs.existsSync(tempFilePathMp4)) {
+          return reject(new Error('Downloaded video file not found for GIF conversion.'));
+        }
 
         progressCallback({
           status: 'converting',
@@ -303,15 +332,15 @@ function downloadVideo(url, options = {}, progressCallback) {
           message: 'Converting video to high-quality GIF...'
         });
 
-        console.log(`[Downloader] Converting ${finalFilePath} to ${finalGifPath} using ffmpeg...`);
+        console.log(`[Downloader] Converting ${tempFilePathMp4} to ${finalFilePath} using ffmpeg...`);
         
         // ffmpeg command for high-quality loopable GIF using custom palette
         const ffmpegProcess = spawn(ffmpegPath, [
           '-y',
-          '-i', finalFilePath,
+          '-i', tempFilePathMp4,
           '-vf', 'fps=15,scale=480:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse',
           '-loop', '0',
-          finalGifPath
+          finalFilePath
         ]);
 
         let ffmpegErr = '';
@@ -320,10 +349,9 @@ function downloadVideo(url, options = {}, progressCallback) {
         });
 
         ffmpegProcess.on('close', (ffmpegCode) => {
-          // Clean up the temporary download file
           try {
-            fs.unlinkSync(finalFilePath);
-            console.log(`[Downloader] Cleaned up temporary video: ${finalFilePath}`);
+            fs.unlinkSync(tempFilePathMp4);
+            console.log(`[Downloader] Cleaned up temporary video: ${tempFilePathMp4}`);
           } catch (delErr) {
             console.error(`[Downloader] Failed to delete temp video:`, delErr.message);
           }
@@ -337,23 +365,15 @@ function downloadVideo(url, options = {}, progressCallback) {
             status: 'completed',
             progress: 100,
             message: 'Converted to GIF successfully!',
-            filePath: finalGifPath
+            filePath: finalFilePath
           });
-          resolve(finalGifPath);
+          resolve(finalFilePath);
         });
       } else if (formatOption === 'mp4' && needsTranscoding) {
-        // Handle MP4 Transcoding for incompatible codecs (like bytevc1/HEVC + HE-AAC on TikTok)
-        if (!finalFilePath || !fs.existsSync(finalFilePath)) {
+        // 3. Handle MP4 Transcoding for incompatible codecs (like bytevc1/HEVC + HE-AAC on TikTok)
+        if (!fs.existsSync(tempFilePathMp4)) {
           return reject(new Error('Downloaded video file not found for transcoding.'));
         }
-
-        const dir = path.dirname(finalFilePath);
-        const ext = path.extname(finalFilePath);
-        let base = path.basename(finalFilePath, ext);
-        if (base.startsWith('temp_')) {
-          base = base.substring(5);
-        }
-        const finalMp4Path = path.join(dir, `${base}.mp4`);
 
         progressCallback({
           status: 'converting',
@@ -361,16 +381,16 @@ function downloadVideo(url, options = {}, progressCallback) {
           message: 'Transcoding video to standard H.264/AAC for compatibility...'
         });
 
-        console.log(`[Downloader] Transcoding ${finalFilePath} to ${finalMp4Path} using ffmpeg...`);
+        console.log(`[Downloader] Transcoding ${tempFilePathMp4} to ${finalFilePath} using ffmpeg...`);
         
         const ffmpegProcess = spawn(ffmpegPath, [
           '-y',
-          '-i', finalFilePath,
+          '-i', tempFilePathMp4,
           '-c:v', 'libx264',
           '-c:a', 'aac',
           '-preset', 'fast',
           '-crf', '23',
-          finalMp4Path
+          finalFilePath
         ]);
 
         let ffmpegErr = '';
@@ -379,10 +399,9 @@ function downloadVideo(url, options = {}, progressCallback) {
         });
 
         ffmpegProcess.on('close', (ffmpegCode) => {
-          // Clean up the temporary download file
           try {
-            fs.unlinkSync(finalFilePath);
-            console.log(`[Downloader] Cleaned up temporary video: ${finalFilePath}`);
+            fs.unlinkSync(tempFilePathMp4);
+            console.log(`[Downloader] Cleaned up temporary video: ${tempFilePathMp4}`);
           } catch (delErr) {
             console.error(`[Downloader] Failed to delete temp video:`, delErr.message);
           }
@@ -396,17 +415,32 @@ function downloadVideo(url, options = {}, progressCallback) {
             status: 'completed',
             progress: 100,
             message: 'Transcoded and downloaded successfully!',
-            filePath: finalMp4Path
+            filePath: finalFilePath
           });
-          resolve(finalMp4Path);
+          resolve(finalFilePath);
         });
       } else {
-        // Normal MP4 or MP3 download completed
+        // 4. Normal MP4 video download completed (no transcoding needed)
+        if (!fs.existsSync(tempFilePathMp4)) {
+          return reject(new Error('Downloaded video file not found.'));
+        }
+
+        try {
+          if (fs.existsSync(finalFilePath)) {
+            fs.unlinkSync(finalFilePath);
+          }
+          fs.renameSync(tempFilePathMp4, finalFilePath);
+          console.log(`[Downloader] Renamed ${tempFilePathMp4} to ${finalFilePath}`);
+        } catch (renameErr) {
+          console.error(`[Downloader] Rename failed:`, renameErr.message);
+          return reject(renameErr);
+        }
+
         progressCallback({
           status: 'completed',
           progress: 100,
           message: 'Download completed successfully!',
-          filePath: finalFilePath || path.join(platformDir, 'Unknown')
+          filePath: finalFilePath
         });
         resolve(finalFilePath);
       }
