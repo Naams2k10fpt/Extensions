@@ -132,6 +132,12 @@ function downloadVideo(url, options = {}, progressCallback) {
     const formatOption = options.format || 'mp4'; // 'mp4' or 'mp3'
     const resolution = options.resolution || 'best'; // 'best', '1080p', '720p', '480p'
 
+    // Determine if video needs transcoding (e.g. TikTok uses H.265/HE-AAC which has compatibility issues)
+    let needsTranscoding = false;
+    if (formatOption === 'mp4' && platform === 'tiktok') {
+      needsTranscoding = true;
+    }
+
     const args = [];
 
     // Check for cookies.txt file or environment browser cookies setting
@@ -146,8 +152,8 @@ function downloadVideo(url, options = {}, progressCallback) {
     }
 
     // Add output template: e.g. path/to/youtube/%(title)s.%(ext)s
-    // If format is GIF, we download to a temporary mp4 file first
-    const outputFileName = formatOption === 'gif' ? 'temp_%(title)s.%(ext)s' : '%(title)s.%(ext)s';
+    // If format is GIF or needs transcoding, we download to a temporary mp4 file first
+    const outputFileName = (formatOption === 'gif' || needsTranscoding) ? 'temp_%(title)s.%(ext)s' : '%(title)s.%(ext)s';
     args.push('-o', path.join(platformDir, outputFileName));
     
     // Add ffmpeg location
@@ -326,6 +332,65 @@ function downloadVideo(url, options = {}, progressCallback) {
             filePath: finalGifPath
           });
           resolve(finalGifPath);
+        });
+      } else if (formatOption === 'mp4' && needsTranscoding) {
+        // Handle MP4 Transcoding for incompatible codecs (like bytevc1/HEVC + HE-AAC on TikTok)
+        if (!finalFilePath || !fs.existsSync(finalFilePath)) {
+          return reject(new Error('Downloaded video file not found for transcoding.'));
+        }
+
+        const dir = path.dirname(finalFilePath);
+        const ext = path.extname(finalFilePath);
+        let base = path.basename(finalFilePath, ext);
+        if (base.startsWith('temp_')) {
+          base = base.substring(5);
+        }
+        const finalMp4Path = path.join(dir, `${base}.mp4`);
+
+        progressCallback({
+          status: 'converting',
+          progress: 99,
+          message: 'Transcoding video to standard H.264/AAC for compatibility...'
+        });
+
+        console.log(`[Downloader] Transcoding ${finalFilePath} to ${finalMp4Path} using ffmpeg...`);
+        
+        const ffmpegProcess = spawn(ffmpegPath, [
+          '-y',
+          '-i', finalFilePath,
+          '-c:v', 'libx264',
+          '-c:a', 'aac',
+          '-preset', 'fast',
+          '-crf', '23',
+          finalMp4Path
+        ]);
+
+        let ffmpegErr = '';
+        ffmpegProcess.stderr.on('data', (data) => {
+          ffmpegErr += data.toString();
+        });
+
+        ffmpegProcess.on('close', (ffmpegCode) => {
+          // Clean up the temporary download file
+          try {
+            fs.unlinkSync(finalFilePath);
+            console.log(`[Downloader] Cleaned up temporary video: ${finalFilePath}`);
+          } catch (delErr) {
+            console.error(`[Downloader] Failed to delete temp video:`, delErr.message);
+          }
+
+          if (ffmpegCode !== 0) {
+            console.error(`[Downloader] ffmpeg transcoding failed: ${ffmpegErr}`);
+            return reject(new Error(`Failed to transcode video: ${ffmpegErr.split('\n')[0] || 'Unknown ffmpeg error'}`));
+          }
+
+          progressCallback({
+            status: 'completed',
+            progress: 100,
+            message: 'Transcoded and downloaded successfully!',
+            filePath: finalMp4Path
+          });
+          resolve(finalMp4Path);
         });
       } else {
         // Normal MP4 or MP3 download completed
