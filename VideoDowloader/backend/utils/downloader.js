@@ -214,9 +214,11 @@ function downloadVideo(url, options = {}, progressCallback) {
     let lastPercent = 0;
     let isExtractingOrMerging = false;
     let finalFilePath = '';
+    let stdoutAccumulated = '';
 
     ytDlpProcess.stdout.on('data', (data) => {
       const output = data.toString();
+      stdoutAccumulated += output;
 
       // Look for download percentage: "[download]  12.3% of..."
       const progressMatch = output.match(/\[download\]\s+(\d+(?:\.\d+)?)%/);
@@ -233,9 +235,15 @@ function downloadVideo(url, options = {}, progressCallback) {
       }
 
       // Look for destination file path (useful to know where it saved)
-      const destMatch = output.match(/\[download\] Destination: (.+)/) || output.match(/\[Merge\] Merging formats into "(.+)"/) || output.match(/\[ExtractAudio\] Destination: (.+)/);
+      // We check on accumulated stdout to prevent missing lines due to chunk boundaries,
+      // and support the "already been downloaded" case.
+      const destMatch = 
+        stdoutAccumulated.match(/\[download\] Destination: (.+)/) || 
+        stdoutAccumulated.match(/\[Merge\] Merging formats into "(.+)"/) || 
+        stdoutAccumulated.match(/\[ExtractAudio\] Destination: (.+)/) ||
+        stdoutAccumulated.match(/\[download\] (.+) has already been downloaded/);
       if (destMatch) {
-        finalFilePath = destMatch[1].trim();
+        finalFilePath = destMatch[1].trim().split('\n')[0].replace(/\r$/, '');
       }
 
       // Check if it's merging or extracting audio
