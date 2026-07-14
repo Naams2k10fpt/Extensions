@@ -1,6 +1,8 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const { Readable } = require('stream');
+const { finished } = require('stream/promises');
 const ffmpeg = require('ffmpeg-static');
 
 // Path to the yt-dlp binary
@@ -154,6 +156,117 @@ function downloadVideo(url, options = {}, progressCallback) {
     
     const finalExt = formatOption === 'mp3' ? 'mp3' : (formatOption === 'gif' ? 'gif' : 'mp4');
     const finalFilePath = path.join(platformDir, `${cleanTitle}.${finalExt}`);
+
+    // ============================================
+    // TikTok API Download (Primary Method)
+    // ============================================
+    if (platform === 'tiktok') {
+      console.log(`[Downloader] Attempting TikTok download via TikWM API for URL: ${url}`);
+      progressCallback({
+        status: 'starting',
+        progress: 10,
+        message: 'Connecting to TikTok API...'
+      });
+      
+      try {
+        const apiUrl = `https://tikwm.com/api/?url=${encodeURIComponent(url)}`;
+        const response = await fetch(apiUrl);
+        const result = await response.json();
+        
+        if (result && result.code === 0 && result.data) {
+          const data = result.data;
+          let downloadUrl = formatOption === 'mp3' ? data.music : data.play;
+          
+          if (downloadUrl) {
+            console.log(`[Downloader] TikTok API success. Stream URL: ${downloadUrl}`);
+            const tempFilePath = formatOption === 'mp3' ? tempFilePathMp3 : tempFilePathMp4;
+            
+            progressCallback({
+              status: 'downloading',
+              progress: 20,
+              message: 'Downloading media stream...'
+            });
+            
+            const streamRes = await fetch(downloadUrl);
+            if (!streamRes.ok) {
+              throw new Error(`Failed to download TikTok stream: ${streamRes.statusText}`);
+            }
+            
+            const contentLength = streamRes.headers.get('content-length');
+            const totalBytes = contentLength ? parseInt(contentLength, 10) : 0;
+            
+            const fileStream = fs.createWriteStream(tempFilePath);
+            const bodyStream = Readable.fromWeb(streamRes.body);
+            let downloadedBytes = 0;
+            
+            bodyStream.on('data', (chunk) => {
+              downloadedBytes += chunk.length;
+              if (totalBytes > 0) {
+                const percent = (downloadedBytes / totalBytes) * 100;
+                progressCallback({
+                  status: 'downloading',
+                  progress: percent,
+                  message: `Downloading: ${percent.toFixed(1)}%`
+                });
+              }
+            });
+            
+            bodyStream.pipe(fileStream);
+            await finished(fileStream);
+            
+            console.log(`[Downloader] TikTok API download finished. Postprocessing...`);
+            
+            if (formatOption === 'gif') {
+              progressCallback({
+                status: 'converting',
+                progress: 99,
+                message: 'Converting video to high-quality GIF...'
+              });
+              
+              await new Promise((resGif, rejGif) => {
+                const ffmpegProcess = spawn(ffmpegPath, [
+                  '-y',
+                  '-i', tempFilePathMp4,
+                  '-vf', 'fps=15,scale=480:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse',
+                  '-loop', '0',
+                  finalFilePath
+                ]);
+                
+                let ffmpegErr = '';
+                ffmpegProcess.stderr.on('data', (d) => ffmpegErr += d.toString());
+                ffmpegProcess.on('close', (ffmpegCode) => {
+                  try { fs.unlinkSync(tempFilePathMp4); } catch {}
+                  if (ffmpegCode !== 0) {
+                    rejGif(new Error(`Failed to convert GIF: ${ffmpegErr}`));
+                  } else {
+                    resGif();
+                  }
+                });
+              });
+            } else {
+              const tempPath = formatOption === 'mp3' ? tempFilePathMp3 : tempFilePathMp4;
+              if (fs.existsSync(finalFilePath)) {
+                fs.unlinkSync(finalFilePath);
+              }
+              fs.renameSync(tempPath, finalFilePath);
+            }
+            
+            progressCallback({
+              status: 'completed',
+              progress: 100,
+              message: 'Download completed successfully!',
+              filePath: finalFilePath
+            });
+            return resolve(finalFilePath);
+          }
+        }
+        console.warn(`[Downloader] TikTok API did not return valid links. Falling back to local yt-dlp...`);
+      } catch (apiErr) {
+        console.error(`[Downloader] TikTok API download failed. Error:`, apiErr.message);
+        console.log(`[Downloader] Falling back to local yt-dlp...`);
+      }
+    }
+    // ============================================
 
     const args = [];
 
