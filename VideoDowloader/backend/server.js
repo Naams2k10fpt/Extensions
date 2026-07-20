@@ -48,7 +48,7 @@ app.post('/api/info', async (req, res) => {
 
 // API: Start download
 app.post('/api/download', async (req, res) => {
-  const { url, format, resolution } = req.body;
+  const { url, format, resolution, customFilename } = req.body;
   if (!url) {
     return res.status(400).json({ error: 'URL is required.' });
   }
@@ -65,7 +65,7 @@ app.post('/api/download', async (req, res) => {
   };
 
   // Start download in background
-  downloadVideo(url, { format, resolution, downloadId }, (progressData) => {
+  downloadVideo(url, { format, resolution, downloadId, customFilename }, (progressData) => {
     // Progress Callback
     if (activeDownloads[downloadId]) {
       activeDownloads[downloadId].progress = progressData.progress;

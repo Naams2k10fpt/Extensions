@@ -59,7 +59,10 @@
         </div>
         
         <div class="video-details">
-          <h2 id="video-title" class="video-title">Tên video...</h2>
+          <div class="title-edit-container">
+            <label for="video-title-input" class="edit-label">Tên file lưu:</label>
+            <input type="text" id="video-title-input" class="video-title-input" value="Tên video..." placeholder="Nhập tên file lưu...">
+          </div>
           <p id="video-uploader" class="video-uploader">Kênh: Uploader</p>
         </div>
 
@@ -70,6 +73,7 @@
             <select id="select-format">
               <option value="mp4">Video (MP4)</option>
               <option value="mp3">Audio (MP3)</option>
+              <option value="ogg">Audio (OGG)</option>
               <option value="gif">Ảnh động (GIF)</option>
             </select>
           </div>

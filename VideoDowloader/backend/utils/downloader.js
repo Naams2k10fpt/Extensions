@@ -133,16 +133,20 @@ function downloadVideo(url, options = {}, progressCallback) {
 
     // Fetch video info to get metadata (especially title)
     let title = 'video';
-    try {
-      const info = await getVideoInfo(url);
-      title = info.title || 'video';
-    } catch (err) {
-      console.warn('[Downloader] Failed to get video info for title, using default name:', err.message);
+    if (options.customFilename) {
+      title = options.customFilename;
+    } else {
+      try {
+        const info = await getVideoInfo(url);
+        title = info.title || 'video';
+      } catch (err) {
+        console.warn('[Downloader] Failed to get video info for title, using default name:', err.message);
+      }
     }
     
     // Clean title for Windows filesystem compatibility
     const cleanTitle = title.replace(/[\\/:*?"<>|]/g, '_').trim();
-    const formatOption = options.format || 'mp4'; // 'mp4', 'mp3', 'gif'
+    const formatOption = options.format || 'mp4'; // 'mp4', 'mp3', 'gif', 'ogg'
     const resolution = options.resolution || 'best'; // 'best', '1080p', '720p', '480p'
     const downloadId = options.downloadId || Date.now().toString();
 
@@ -153,8 +157,9 @@ function downloadVideo(url, options = {}, progressCallback) {
     const tempFileTemplate = path.join(platformDir, `temp_${downloadId}.%(ext)s`);
     const tempFilePathMp4 = path.join(platformDir, `temp_${downloadId}.mp4`);
     const tempFilePathMp3 = path.join(platformDir, `temp_${downloadId}.mp3`);
+    const tempFilePathOgg = path.join(platformDir, `temp_${downloadId}.ogg`);
     
-    const finalExt = formatOption === 'mp3' ? 'mp3' : (formatOption === 'gif' ? 'gif' : 'mp4');
+    const finalExt = formatOption === 'mp3' ? 'mp3' : (formatOption === 'gif' ? 'gif' : (formatOption === 'ogg' ? 'ogg' : 'mp4'));
     const finalFilePath = path.join(platformDir, `${cleanTitle}.${finalExt}`);
 
     // ============================================
@@ -175,11 +180,17 @@ function downloadVideo(url, options = {}, progressCallback) {
         
         if (result && result.code === 0 && result.data) {
           const data = result.data;
-          let downloadUrl = formatOption === 'mp3' ? data.music : data.play;
+          let isAudio = formatOption === 'mp3' || formatOption === 'ogg';
+          let downloadUrl = isAudio ? data.music : data.play;
           
           if (downloadUrl) {
             console.log(`[Downloader] TikTok API success. Stream URL: ${downloadUrl}`);
-            const tempFilePath = formatOption === 'mp3' ? tempFilePathMp3 : tempFilePathMp4;
+            const tempFilePath = isAudio 
+              ? (formatOption === 'mp3' ? tempFilePathMp3 : tempFilePathOgg) 
+              : tempFilePathMp4;
+            
+            // If ogg is requested, TikWM only returns mp3 stream so we must download to tempFilePathMp3 and convert using ffmpeg
+            const downloadDestPath = formatOption === 'ogg' ? tempFilePathMp3 : tempFilePath;
             
             progressCallback({
               status: 'downloading',
@@ -195,7 +206,7 @@ function downloadVideo(url, options = {}, progressCallback) {
             const contentLength = streamRes.headers.get('content-length');
             const totalBytes = contentLength ? parseInt(contentLength, 10) : 0;
             
-            const fileStream = fs.createWriteStream(tempFilePath);
+            const fileStream = fs.createWriteStream(downloadDestPath);
             const bodyStream = Readable.fromWeb(streamRes.body);
             let downloadedBytes = 0;
             
@@ -240,6 +251,33 @@ function downloadVideo(url, options = {}, progressCallback) {
                     rejGif(new Error(`Failed to convert GIF: ${ffmpegErr}`));
                   } else {
                     resGif();
+                  }
+                });
+              });
+            } else if (formatOption === 'ogg') {
+              // Convert downloaded temp MP3 music stream to OGG
+              progressCallback({
+                status: 'converting',
+                progress: 99,
+                message: 'Converting audio to OGG format...'
+              });
+              
+              await new Promise((resOgg, rejOgg) => {
+                const ffmpegProcess = spawn(ffmpegPath, [
+                  '-y',
+                  '-i', tempFilePathMp3,
+                  '-c:a', 'libvorbis',
+                  finalFilePath
+                ]);
+                
+                let ffmpegErr = '';
+                ffmpegProcess.stderr.on('data', (d) => ffmpegErr += d.toString());
+                ffmpegProcess.on('close', (ffmpegCode) => {
+                  try { fs.unlinkSync(tempFilePathMp3); } catch {}
+                  if (ffmpegCode !== 0) {
+                    rejOgg(new Error(`Failed to convert OGG: ${ffmpegErr}`));
+                  } else {
+                    resOgg();
                   }
                 });
               });
@@ -288,11 +326,11 @@ function downloadVideo(url, options = {}, progressCallback) {
     args.push('--ffmpeg-location', ffmpegDir);
 
     // Handle format and resolution arguments
-    if (formatOption === 'mp3') {
+    if (formatOption === 'mp3' || formatOption === 'ogg') {
       args.push('-f', 'ba/b');
       args.push('-x');
-      args.push('--audio-format', 'mp3');
-      args.push('--audio-quality', '0'); // Best quality MP3
+      args.push('--audio-format', formatOption);
+      args.push('--audio-quality', '0'); // Best quality
     } else if (formatOption === 'gif') {
       // For GIF conversion, we download as MP4 video (audio not required, but default merge is safe)
       if (platform !== 'youtube') {
@@ -395,9 +433,10 @@ function downloadVideo(url, options = {}, progressCallback) {
 
       console.log(`[Downloader] Download process completed successfully.`);
       
-      // 1. Handle MP3 conversion rename
-      if (formatOption === 'mp3') {
-        if (!fs.existsSync(tempFilePathMp3)) {
+      // 1. Handle Audio conversion rename (MP3/OGG)
+      if (formatOption === 'mp3' || formatOption === 'ogg') {
+        const tempAudioPath = formatOption === 'mp3' ? tempFilePathMp3 : tempFilePathOgg;
+        if (!fs.existsSync(tempAudioPath)) {
           if (fs.existsSync(finalFilePath)) {
             progressCallback({
               status: 'completed',
@@ -407,15 +446,15 @@ function downloadVideo(url, options = {}, progressCallback) {
             });
             return resolve(finalFilePath);
           }
-          return reject(new Error('Downloaded MP3 file not found.'));
+          return reject(new Error(`Downloaded ${formatOption.toUpperCase()} file not found.`));
         }
 
         try {
           if (fs.existsSync(finalFilePath)) {
             fs.unlinkSync(finalFilePath);
           }
-          fs.renameSync(tempFilePathMp3, finalFilePath);
-          console.log(`[Downloader] Renamed ${tempFilePathMp3} to ${finalFilePath}`);
+          fs.renameSync(tempAudioPath, finalFilePath);
+          console.log(`[Downloader] Renamed ${tempAudioPath} to ${finalFilePath}`);
         } catch (renameErr) {
           console.error(`[Downloader] Rename failed:`, renameErr.message);
           return reject(renameErr);

@@ -14,7 +14,7 @@ const videoInfoCard = document.getElementById('video-info-card');
 const videoThumbnail = document.getElementById('video-thumbnail');
 const videoDuration = document.getElementById('video-duration');
 const platformBadge = document.getElementById('platform-badge');
-const videoTitle = document.getElementById('video-title');
+const videoTitleInput = document.getElementById('video-title-input');
 const videoUploader = document.getElementById('video-uploader');
 
 const selectFormat = document.getElementById('select-format');
@@ -110,7 +110,7 @@ function setupEventListeners() {
 
   // Format selection change
   selectFormat.addEventListener('change', () => {
-    if (selectFormat.value === 'mp3' || selectFormat.value === 'gif' || currentPlatform !== 'youtube') {
+    if (selectFormat.value === 'mp3' || selectFormat.value === 'ogg' || selectFormat.value === 'gif' || currentPlatform !== 'youtube') {
       resolutionRow.classList.add('hidden');
     } else {
       resolutionRow.classList.remove('hidden');
@@ -204,7 +204,7 @@ async function analyzeUrl() {
     currentPlatform = data.platform;
     videoThumbnail.src = data.thumbnail || 'icon.png';
     videoDuration.textContent = data.duration;
-    videoTitle.textContent = data.title;
+    videoTitleInput.value = data.title;
     videoUploader.textContent = `Kênh: ${data.uploader}`;
 
     // Configure platform badge
@@ -244,6 +244,8 @@ async function startDownload() {
   const format = selectFormat.value;
   const resolution = selectResolution.value;
 
+  const customFilename = videoTitleInput.value.trim();
+
   videoInfoCard.classList.add('hidden');
   progressCard.classList.remove('hidden');
   updateProgress(0, 'downloading', 'Đang yêu cầu tải...', 'Kết nối tới backend server...');
@@ -252,7 +254,7 @@ async function startDownload() {
     const response = await fetch(`${BACKEND_URL}/api/download`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, format, resolution })
+      body: JSON.stringify({ url, format, resolution, customFilename })
     });
 
     const data = await response.json();
