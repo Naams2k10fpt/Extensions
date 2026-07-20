@@ -133,7 +133,7 @@ function downloadVideo(url, options = {}, progressCallback, skipCookies = false)
     const formatOption = options.format || 'mp4'; // 'mp4', 'mp3', 'gif', 'ogg'
     const isAudio = formatOption === 'mp3' || formatOption === 'ogg';
     const platformDir = isAudio 
-      ? path.join(downloadBaseDir, 'audio') 
+      ? (process.env.AUDIO_DOWNLOAD_DIR || path.join(process.env.USERPROFILE || process.env.HOME || '.', 'Music')) 
       : path.join(downloadBaseDir, platform);
 
     // Create directories if they do not exist
