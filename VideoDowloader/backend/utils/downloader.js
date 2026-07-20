@@ -122,7 +122,12 @@ function downloadVideo(url, options = {}, progressCallback) {
 
     const platform = getPlatform(url);
     const downloadBaseDir = process.env.DOWNLOAD_DIR || path.join(process.env.USERPROFILE || process.env.HOME || '.', 'Videos', 'ExtensionVideos');
-    const platformDir = path.join(downloadBaseDir, platform);
+    
+    const formatOption = options.format || 'mp4'; // 'mp4', 'mp3', 'gif', 'ogg'
+    const isAudio = formatOption === 'mp3' || formatOption === 'ogg';
+    const platformDir = isAudio 
+      ? path.join(downloadBaseDir, 'audio') 
+      : path.join(downloadBaseDir, platform);
 
     // Create directories if they do not exist
     if (!fs.existsSync(platformDir)) {
@@ -146,7 +151,6 @@ function downloadVideo(url, options = {}, progressCallback) {
     
     // Clean title for Windows filesystem compatibility
     const cleanTitle = title.replace(/[\\/:*?"<>|]/g, '_').trim();
-    const formatOption = options.format || 'mp4'; // 'mp4', 'mp3', 'gif', 'ogg'
     const resolution = options.resolution || 'best'; // 'best', '1080p', '720p', '480p'
     const downloadId = options.downloadId || Date.now().toString();
 
