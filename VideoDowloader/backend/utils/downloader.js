@@ -342,7 +342,7 @@ function downloadVideo(url, options = {}, progressCallback, skipCookies = false)
     if (formatOption === 'mp3' || formatOption === 'ogg') {
       args.push('-f', 'ba/b');
       args.push('-x');
-      args.push('--audio-format', formatOption);
+      args.push('--audio-format', formatOption === 'ogg' ? 'vorbis' : 'mp3');
       args.push('--audio-quality', '0'); // Best quality
     } else if (formatOption === 'gif') {
       // For GIF conversion, we download as MP4 video (audio not required, but default merge is safe)
