@@ -41,7 +41,7 @@ function formatDuration(durationSec) {
 }
 
 // Get video metadata
-function getVideoInfo(url) {
+function getVideoInfo(url, skipCookies = false) {
   return new Promise((resolve, reject) => {
     const ytDlpPath = getCustomYtDlpPath();
 
@@ -49,19 +49,21 @@ function getVideoInfo(url) {
       return reject(new Error('yt-dlp is not installed. Please wait for setup to finish or restart the server.'));
     }
 
-    console.log(`[Downloader] Fetching info for: ${url}`);
+    console.log(`[Downloader] Fetching info for: ${url} (skipCookies: ${skipCookies})`);
     
     const args = ['--dump-json', '--no-playlist'];
     
-    // Check for cookies.txt file or environment browser cookies setting
-    const cookiesPathRoot = path.join(__dirname, '..', '..', 'cookies.txt');
-    const cookiesPathBackend = path.join(__dirname, '..', 'cookies.txt');
-    if (fs.existsSync(cookiesPathRoot)) {
-      args.push('--cookies', cookiesPathRoot);
-    } else if (fs.existsSync(cookiesPathBackend)) {
-      args.push('--cookies', cookiesPathBackend);
-    } else if (process.env.COOKIES_FROM_BROWSER) {
-      args.push('--cookies-from-browser', process.env.COOKIES_FROM_BROWSER);
+    if (!skipCookies) {
+      // Check for cookies.txt file or environment browser cookies setting
+      const cookiesPathRoot = path.join(__dirname, '..', '..', 'cookies.txt');
+      const cookiesPathBackend = path.join(__dirname, '..', 'cookies.txt');
+      if (fs.existsSync(cookiesPathRoot)) {
+        args.push('--cookies', cookiesPathRoot);
+      } else if (fs.existsSync(cookiesPathBackend)) {
+        args.push('--cookies', cookiesPathBackend);
+      } else if (process.env.COOKIES_FROM_BROWSER) {
+        args.push('--cookies-from-browser', process.env.COOKIES_FROM_BROWSER);
+      }
     }
     
     args.push(url);
@@ -81,6 +83,11 @@ function getVideoInfo(url) {
 
     ytDlpProcess.on('close', (code) => {
       if (code !== 0) {
+        // Automatically retry without cookies if a cookie lock error is detected
+        if (!skipCookies && (stderrData.toLowerCase().includes('cookie') || stderrData.toLowerCase().includes('database'))) {
+          console.warn('[Downloader] Cookie error detected. Retrying without cookies...');
+          return resolve(getVideoInfo(url, true));
+        }
         console.error(`[Downloader] yt-dlp failed with code ${code}. Error: ${stderrData}`);
         return reject(new Error(`Failed to retrieve video information: ${stderrData.split('\n')[0] || 'Unknown error'}`));
       }
@@ -110,7 +117,7 @@ function getVideoInfo(url) {
 }
 
 // Download video/audio
-function downloadVideo(url, options = {}, progressCallback) {
+function downloadVideo(url, options = {}, progressCallback, skipCookies = false) {
   return new Promise(async (resolve, reject) => {
     const ytDlpPath = getCustomYtDlpPath();
     const ffmpegPath = ffmpeg;
@@ -312,15 +319,17 @@ function downloadVideo(url, options = {}, progressCallback) {
 
     const args = [];
 
-    // Check for cookies.txt file or environment browser cookies setting
-    const cookiesPathRoot = path.join(__dirname, '..', '..', 'cookies.txt');
-    const cookiesPathBackend = path.join(__dirname, '..', 'cookies.txt');
-    if (fs.existsSync(cookiesPathRoot)) {
-      args.push('--cookies', cookiesPathRoot);
-    } else if (fs.existsSync(cookiesPathBackend)) {
-      args.push('--cookies', cookiesPathBackend);
-    } else if (process.env.COOKIES_FROM_BROWSER) {
-      args.push('--cookies-from-browser', process.env.COOKIES_FROM_BROWSER);
+    if (!skipCookies) {
+      // Check for cookies.txt file or environment browser cookies setting
+      const cookiesPathRoot = path.join(__dirname, '..', '..', 'cookies.txt');
+      const cookiesPathBackend = path.join(__dirname, '..', 'cookies.txt');
+      if (fs.existsSync(cookiesPathRoot)) {
+        args.push('--cookies', cookiesPathRoot);
+      } else if (fs.existsSync(cookiesPathBackend)) {
+        args.push('--cookies', cookiesPathBackend);
+      } else if (process.env.COOKIES_FROM_BROWSER) {
+        args.push('--cookies-from-browser', process.env.COOKIES_FROM_BROWSER);
+      }
     }
 
     // Add output template using clean ASCII ID
@@ -431,6 +440,11 @@ function downloadVideo(url, options = {}, progressCallback) {
 
     ytDlpProcess.on('close', (code) => {
       if (code !== 0) {
+        // Automatically retry without cookies if a cookie lock error is detected during download
+        if (!skipCookies && (errorOutput.toLowerCase().includes('cookie') || errorOutput.toLowerCase().includes('database'))) {
+          console.warn('[Downloader] Cookie error detected during download. Retrying without cookies...');
+          return resolve(downloadVideo(url, options, progressCallback, true));
+        }
         console.error(`[Downloader] Download process failed with code ${code}. Error: ${errorOutput}`);
         return reject(new Error(errorOutput.split('\n')[0] || `Download process exited with code ${code}`));
       }
