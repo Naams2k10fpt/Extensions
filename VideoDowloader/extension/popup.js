@@ -166,11 +166,16 @@ function showLoadingState(isLoading) {
 }
 
 function showError(msg) {
+  console.error('[Extension Error]', msg);
   videoInfoCard.classList.add('hidden');
   progressCard.classList.add('hidden');
   successCard.classList.add('hidden');
   errorCard.classList.remove('hidden');
-  errorMessage.textContent = msg;
+  
+  const errElement = document.getElementById('error-message');
+  if (errElement) {
+    errElement.textContent = msg || 'Lỗi không xác định.';
+  }
 }
 
 // API Call: Fetch Video Info

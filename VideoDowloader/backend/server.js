@@ -13,6 +13,29 @@ const PORT = process.env.PORT || 4000;
 const startTime = Date.now();
 let lastHeartbeat = Date.now();
 
+const logFilePath = path.join(__dirname, 'server.log');
+
+// Log writer helper
+function writeLog(type, message, error) {
+  try {
+    const timestamp = new Date().toISOString();
+    let logContent = `[${timestamp}] [${type}] ${message}\n`;
+    if (error) {
+      logContent += `Error Message: ${error.message || error}\n`;
+      if (error.stack) {
+        logContent += `Stack: ${error.stack}\n`;
+      }
+    }
+    logContent += `----------------------------------------\n`;
+    fs.appendFileSync(logFilePath, logContent, 'utf8');
+  } catch (err) {
+    console.error('Failed to write to log file:', err);
+  }
+}
+
+// Log startup info
+writeLog('STARTUP', `Server starting up on port ${PORT}...`);
+
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -35,13 +58,19 @@ downloadYtDlp()
 app.post('/api/info', async (req, res) => {
   const { url } = req.body;
   if (!url) {
+    writeLog('WARNING', 'Info request received without URL.');
     return res.status(400).json({ error: 'URL is required.' });
   }
+
+  console.log(`[Server] Received info request for: ${url}`);
+  writeLog('INFO', `Received info request for URL: ${url}`);
 
   try {
     const info = await getVideoInfo(url);
     res.json(info);
   } catch (error) {
+    console.error('[Server] Info fetch failed:', error.message);
+    writeLog('ERROR', `Failed to get video info for: ${url}`, error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -50,8 +79,11 @@ app.post('/api/info', async (req, res) => {
 app.post('/api/download', async (req, res) => {
   const { url, format, resolution, customFilename } = req.body;
   if (!url) {
+    writeLog('WARNING', 'Download request received without URL.');
     return res.status(400).json({ error: 'URL is required.' });
   }
+
+  writeLog('INFO', `Received download request for URL: ${url}, Format: ${format}, Resolution: ${resolution}, customFilename: ${customFilename}`);
 
   const downloadId = Date.now().toString();
   
@@ -84,6 +116,13 @@ app.post('/api/download', async (req, res) => {
         clientRes.write(`data: ${payload}\n\n`);
       });
 
+      // Log complete/fail events
+      if (progressData.status === 'completed') {
+        writeLog('SUCCESS', `Download complete for URL: ${url}. Saved to: ${progressData.filePath}`);
+      } else if (progressData.status === 'failed') {
+        writeLog('ERROR', `Download callback reported failure for URL: ${url}. Msg: ${progressData.message}`);
+      }
+
       // If finished or failed, clean up clients and record after a short delay
       if (progressData.status === 'completed' || progressData.status === 'failed') {
         // Auto-open folder if completed (optional, or let user click button. We will open it auto as well!)
@@ -111,6 +150,7 @@ app.post('/api/download', async (req, res) => {
   }).catch((err) => {
     // Handle error
     console.error(`[Server] Download ID ${downloadId} error:`, err.message);
+    writeLog('DOWNLOAD_ERROR', `Download ID ${downloadId} failed. URL: ${url}`, err);
     if (activeDownloads[downloadId]) {
       activeDownloads[downloadId].status = 'failed';
       activeDownloads[downloadId].message = err.message;
@@ -214,4 +254,15 @@ setInterval(() => {
 // Start Server
 app.listen(PORT, () => {
   console.log(`[Server] Express server running at http://localhost:${PORT}`);
+  writeLog('START', `Express server running at http://localhost:${PORT}`);
+});
+
+process.on('uncaughtException', (err) => {
+  writeLog('CRITICAL_UNCAUGHT', 'Uncaught Exception occurred', err);
+  console.error('Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  writeLog('CRITICAL_REJECTION', `Unhandled Rejection at promise: ${promise}`, reason);
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });

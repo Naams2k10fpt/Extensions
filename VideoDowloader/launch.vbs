@@ -2,6 +2,9 @@ Set WshShell = CreateObject("WScript.Shell")
 ' Get the directory path of the current VBScript file
 strPath = Left(WScript.ScriptFullName, Len(WScript.ScriptFullName) - Len(WScript.ScriptName))
 
+' Kill any process running on port 4000 to ensure fresh restart of backend
+WshShell.Run "cmd /c ""for /f ""tokens=5"" %a in ('netstat -aon ^| findstr :4000') do taskkill /f /pid %a""", 0, True
+
 ' Start the Node.js backend server in the background (0 = Hidden window, False = Do not wait for it to exit)
 WshShell.Run "node.exe """ & strPath & "backend\server.js""", 0, False
 
