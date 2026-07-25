@@ -6,6 +6,7 @@ const fs = require('fs');
 const { exec, spawn } = require('child_process');
 const { downloadYtDlp } = require('./utils/setup');
 const { getVideoInfo, downloadVideo, getPlatform } = require('./utils/downloader');
+const ffmpeg = require('ffmpeg-static');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -174,6 +175,162 @@ app.post('/api/download', async (req, res) => {
     success: true,
     downloadId: downloadId,
     message: 'Download started.'
+  });
+});
+
+// Helper to broadcast progress to all connected clients
+function broadcastProgress(downloadId, progressData) {
+  if (activeDownloads[downloadId]) {
+    activeDownloads[downloadId].progress = progressData.progress;
+    activeDownloads[downloadId].status = progressData.status;
+    activeDownloads[downloadId].message = progressData.message;
+
+    const payload = JSON.stringify({
+      progress: progressData.progress,
+      status: progressData.status,
+      message: progressData.message,
+      filePath: progressData.filePath || ''
+    });
+
+    activeDownloads[downloadId].clients.forEach((clientRes) => {
+      clientRes.write(`data: ${payload}\n\n`);
+    });
+  }
+}
+
+// API: Convert uploaded video to audio (MP3/OGG)
+app.post('/api/convert', (req, res) => {
+  const { format, filename } = req.query;
+  
+  if (!format || !filename) {
+    writeLog('WARNING', 'Convert request received with missing parameters.');
+    return res.status(400).json({ error: 'Format and filename are required in query params.' });
+  }
+
+  const downloadId = Date.now().toString();
+  writeLog('INFO', `Received conversion request ID: ${downloadId}. Target Name: ${filename}, Format: ${format}`);
+
+  // Create directories if they do not exist
+  const audioDir = process.env.AUDIO_DOWNLOAD_DIR || path.join(process.env.USERPROFILE || process.env.HOME || '.', 'Music');
+  const targetDir = path.join(audioDir, 'audio');
+  
+  if (!fs.existsSync(targetDir)) {
+    fs.mkdirSync(targetDir, { recursive: true });
+  }
+
+  const tempVideoPath = path.join(targetDir, `temp_upload_${downloadId}.mp4`);
+
+  // Initialize progress tracking
+  activeDownloads[downloadId] = {
+    progress: 0,
+    status: 'starting',
+    message: 'Preparing upload stream...',
+    clients: [],
+    platform: 'audio'
+  };
+
+  const fileStream = fs.createWriteStream(tempVideoPath);
+  req.pipe(fileStream);
+
+  fileStream.on('error', (err) => {
+    writeLog('ERROR', `File write error on conversion ID ${downloadId}`, err);
+    activeDownloads[downloadId].status = 'failed';
+    activeDownloads[downloadId].message = 'Lỗi ghi file tạm lên server.';
+    
+    broadcastProgress(downloadId, {
+      progress: 0,
+      status: 'failed',
+      message: 'Lỗi ghi file tạm lên server.'
+    });
+
+    res.status(500).json({ error: 'Failed to write temporary file.' });
+  });
+
+  fileStream.on('finish', () => {
+    writeLog('INFO', `File upload finished for conversion ID ${downloadId}. Saved to temp: ${tempVideoPath}`);
+    
+    // Respond to HTTP upload request immediately so client knows upload completed
+    res.json({
+      success: true,
+      downloadId: downloadId,
+      message: 'File uploaded. Conversion starting...'
+    });
+
+    // Start background conversion
+    broadcastProgress(downloadId, {
+      progress: 80,
+      status: 'converting',
+      message: 'Đang chuyển đổi video sang audio...'
+    });
+
+    const cleanName = filename.replace(/[\\/:*?"<>|]/g, '_').trim() || 'audio_converted';
+    const finalFilePath = path.join(targetDir, `${cleanName}.${format}`);
+    
+    // Choose audio codec
+    const audioCodec = format === 'ogg' ? 'libvorbis' : 'libmp3lame';
+    
+    const ffmpegArgs = [
+      '-y',
+      '-i', tempVideoPath,
+      '-vn',
+      '-acodec', audioCodec,
+      '-ab', '320k',
+      finalFilePath
+    ];
+
+    writeLog('INFO', `Starting FFmpeg process: ${ffmpeg} ${ffmpegArgs.join(' ')}`);
+
+    const ffmpegProcess = spawn(ffmpeg, ffmpegArgs);
+    let ffmpegErr = '';
+
+    ffmpegProcess.stderr.on('data', (d) => {
+      ffmpegErr += d.toString();
+    });
+
+    ffmpegProcess.on('close', (code) => {
+      // Clean up temp video file
+      try {
+        if (fs.existsSync(tempVideoPath)) {
+          fs.unlinkSync(tempVideoPath);
+        }
+      } catch (unlinkErr) {
+        console.warn(`Failed to delete temp video upload file: ${tempVideoPath}`, unlinkErr.message);
+      }
+
+      if (code !== 0) {
+        writeLog('ERROR', `FFmpeg conversion failed for ID ${downloadId}. Err: ${ffmpegErr}`);
+        broadcastProgress(downloadId, {
+          progress: 0,
+          status: 'failed',
+          message: 'Lỗi chuyển mã FFmpeg.'
+        });
+      } else {
+        writeLog('SUCCESS', `Successfully converted video to audio. Saved: ${finalFilePath}`);
+        broadcastProgress(downloadId, {
+          progress: 100,
+          status: 'completed',
+          message: 'Chuyển đổi thành công!',
+          filePath: finalFilePath
+        });
+
+        // Auto open folder in Windows Explorer
+        if (process.platform === 'win32') {
+          try {
+            spawn('explorer.exe', [targetDir], { detached: true, stdio: 'ignore' }).unref();
+          } catch (err) {
+             console.error('[Server] Failed to open audio folder after convert:', err.message);
+          }
+        }
+      }
+
+      // Short delay before closing SSE clients
+      setTimeout(() => {
+        if (activeDownloads[downloadId]) {
+          activeDownloads[downloadId].clients.forEach((clientRes) => clientRes.end());
+          delete activeDownloads[downloadId];
+        }
+      }, 5000);
+    });
   });
 });
 

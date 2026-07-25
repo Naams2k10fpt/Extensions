@@ -1,6 +1,8 @@
 const BACKEND_URL = window.location.origin; // Dynamically use the current host (http://localhost:4000)
 let currentPlatform = 'other';
 let eventSource = null;
+let selectedFile = null;
+let isConvertMode = false;
 
 // DOM Elements
 const connectionStatus = document.getElementById('connection-status');
@@ -21,6 +23,22 @@ const selectFormat = document.getElementById('select-format');
 const selectResolution = document.getElementById('select-resolution');
 const resolutionRow = document.getElementById('resolution-row');
 const btnDownload = document.getElementById('btn-download');
+
+// Tabs DOM Elements
+const tabDownload = document.getElementById('tab-download');
+const tabConvert = document.getElementById('tab-convert');
+const downloaderTabContent = document.getElementById('downloader-tab-content');
+const converterTabContent = document.getElementById('converter-tab-content');
+
+// Converter DOM Elements
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('file-input');
+const btnBrowseFile = document.getElementById('btn-browse-file');
+const convertOptionsCard = document.getElementById('convert-options-card');
+const convertTitleInput = document.getElementById('convert-title-input');
+const selectedFileSize = document.getElementById('selected-file-size');
+const convertSelectFormat = document.getElementById('convert-select-format');
+const btnStartConvert = document.getElementById('btn-start-convert');
 
 const progressCard = document.getElementById('progress-card');
 const progressStatusText = document.getElementById('progress-status-text');
@@ -91,6 +109,25 @@ function setConnectionState(isOnline) {
 }
 
 function setupEventListeners() {
+  // Tab selection
+  tabDownload.addEventListener('click', () => {
+    tabDownload.classList.add('active');
+    tabConvert.classList.remove('active');
+    downloaderTabContent.classList.remove('hidden');
+    converterTabContent.classList.add('hidden');
+    isConvertMode = false;
+    showInputSection();
+  });
+
+  tabConvert.addEventListener('click', () => {
+    tabConvert.classList.add('active');
+    tabDownload.classList.remove('active');
+    converterTabContent.classList.remove('hidden');
+    downloaderTabContent.classList.add('hidden');
+    isConvertMode = true;
+    showInputSection();
+  });
+
   // Paste button click
   btnPaste.addEventListener('click', async () => {
     try {
@@ -135,6 +172,37 @@ function setupEventListeners() {
       analyzeUrl();
     }
   });
+
+  // Converter Drag and Drop Events
+  dropzone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropzone.classList.add('dragover');
+  });
+
+  dropzone.addEventListener('dragleave', () => {
+    dropzone.classList.remove('dragover');
+  });
+
+  dropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    if (e.dataTransfer.files.length) {
+      handleFileSelect(e.dataTransfer.files[0]);
+    }
+  });
+
+  btnBrowseFile.addEventListener('click', () => {
+    fileInput.click();
+  });
+
+  fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length) {
+      handleFileSelect(e.target.files[0]);
+    }
+  });
+
+  // Start conversion button click
+  btnStartConvert.addEventListener('click', startConversion);
 }
 
 // State display management
@@ -298,7 +366,11 @@ function listenToProgress(downloadId) {
         setTimeout(() => {
           progressCard.classList.add('hidden');
           successCard.classList.remove('hidden');
-          successFilepath.textContent = `Đã lưu vào thư mục Videos/ExtensionVideos/${currentPlatform}/`;
+          if (isConvertMode) {
+            successFilepath.textContent = `Đã lưu vào thư mục Music/audio/`;
+          } else {
+            successFilepath.textContent = `Đã lưu vào thư mục Videos/ExtensionVideos/${currentPlatform}/`;
+          }
         }, 800);
       } else if (data.status === 'failed') {
         eventSource.close();
@@ -306,7 +378,7 @@ function listenToProgress(downloadId) {
         
         setTimeout(() => {
           progressCard.classList.add('hidden');
-          showError(data.message || 'Tiến trình tải thất bại.');
+          showError(data.message || 'Tiến trình thất bại.');
         }, 800);
       }
     } catch (err) {
@@ -320,7 +392,7 @@ function listenToProgress(downloadId) {
     eventSource = null;
     
     progressCard.classList.add('hidden');
-    showError('Mất kết nối với backend server trong quá trình tải.');
+    showError('Mất kết nối với backend server trong quá trình xử lý.');
   };
 }
 
@@ -346,12 +418,85 @@ function updateProgress(percent, status, statusText, message) {
 // API Call: Open download folder
 async function openDownloadFolder() {
   try {
+    const targetPlatform = isConvertMode ? 'audio' : currentPlatform;
     await fetch(`${BACKEND_URL}/api/open-folder`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ platform: currentPlatform })
+      body: JSON.stringify({ platform: targetPlatform })
     });
   } catch (err) {
     console.error('Không thể mở thư mục:', err);
   }
+}
+
+// Converter functions
+function handleFileSelect(file) {
+  if (!file) return;
+  selectedFile = file;
+  
+  // Get filename without extension
+  const fileNameWithoutExt = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+  convertTitleInput.value = fileNameWithoutExt;
+  
+  // Format file size
+  const sizeInMB = (file.size / (1024 * 1024)).toFixed(1);
+  selectedFileSize.textContent = `Kích thước: ${sizeInMB} MB`;
+  
+  // Show options card
+  convertOptionsCard.classList.remove('hidden');
+}
+
+function startConversion() {
+  if (!selectedFile) {
+    showError('Vui lòng chọn tệp video trước.');
+    return;
+  }
+
+  const format = convertSelectFormat.value;
+  const filename = convertTitleInput.value.trim() || 'audio_converted';
+
+  converterTabContent.classList.add('hidden');
+  progressCard.classList.remove('hidden');
+  updateProgress(0, 'downloading', 'Đang tải tệp lên...', 'Bắt đầu truyền file tới backend...');
+
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', `${BACKEND_URL}/api/convert?format=${encodeURIComponent(format)}&filename=${encodeURIComponent(filename)}`);
+
+  xhr.upload.onprogress = (e) => {
+    if (e.lengthComputable) {
+      // Scale upload progress to 0-80% to leave room for backend conversion phase
+      const percent = (e.loaded / e.total) * 80;
+      updateProgress(percent, 'downloading', 'Đang tải tệp lên...', `Đã tải lên: ${percent.toFixed(1)}%`);
+    }
+  };
+
+  xhr.onload = () => {
+    if (xhr.status >= 200 && xhr.status < 300) {
+      try {
+        const res = JSON.parse(xhr.responseText);
+        const downloadId = res.downloadId;
+        // Listen to conversion progress from SSE
+        listenToProgress(downloadId);
+      } catch (err) {
+        progressCard.classList.add('hidden');
+        showError('Phản hồi không hợp lệ từ máy chủ.');
+      }
+    } else {
+      try {
+        const res = JSON.parse(xhr.responseText);
+        progressCard.classList.add('hidden');
+        showError(res.error || 'Lỗi xảy ra trong quá trình chuyển đổi.');
+      } catch (err) {
+        progressCard.classList.add('hidden');
+        showError('Máy chủ trả về lỗi không xác định.');
+      }
+    }
+  };
+
+  xhr.onerror = () => {
+    progressCard.classList.add('hidden');
+    showError('Lỗi kết nối mạng khi gửi tệp.');
+  };
+
+  xhr.send(selectedFile);
 }

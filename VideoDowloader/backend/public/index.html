@@ -29,70 +29,153 @@
       </div>
     </header>
 
+    <!-- Tabs Navigation -->
+    <div class="tabs-container">
+      <button id="tab-download" class="tab-btn active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tab-icon">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        <span>Tải trực tuyến</span>
+      </button>
+      <button id="tab-convert" class="tab-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tab-icon">
+          <path d="M12 2v13M12 15l-4-4M12 15l4-4"></path>
+          <path d="M20.38 3.46L16 12H8L3.62 3.46A2 2 0 0 1 5.4 1h13.2a2 2 0 0 1 1.78 2.46z" style="display: none;"></path>
+          <!-- Custom Convert Icon -->
+          <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
+          <polyline points="16 6 12 2 8 6"></polyline>
+          <line x1="12" y1="2" x2="12" y2="15"></line>
+        </svg>
+        <span>Đổi file Nhạc</span>
+      </button>
+    </div>
+
     <!-- Main Content -->
     <main>
-      <!-- Input Section -->
-      <section class="input-section">
-        <div class="input-group">
-          <input type="text" id="video-url" placeholder="Dán đường dẫn video vào đây..." autocomplete="off">
-          <button id="btn-paste" title="Dán từ Clipboard">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
-              <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+      <!-- Downloader Tab Content -->
+      <div id="downloader-tab-content" class="tab-content-wrapper">
+        <!-- Input Section -->
+        <section class="input-section">
+          <div class="input-group">
+            <input type="text" id="video-url" placeholder="Dán đường dẫn video vào đây..." autocomplete="off">
+            <button id="btn-paste" title="Dán từ Clipboard">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+              </svg>
+            </button>
+          </div>
+          <button id="btn-analyze" class="btn-primary">
+            <span>Phân tích Link</span>
+            <svg class="loading-spinner hidden" viewBox="0 0 50 50">
+              <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5"></circle>
             </svg>
           </button>
-        </div>
-        <button id="btn-analyze" class="btn-primary">
-          <span>Phân tích Link</span>
-          <svg class="loading-spinner hidden" viewBox="0 0 50 50">
-            <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5"></circle>
-          </svg>
-        </button>
-      </section>
+        </section>
 
-      <!-- Video Info Card (Hidden by default) -->
-      <section id="video-info-card" class="video-info-card hidden">
-        <div class="thumbnail-wrapper">
-          <img id="video-thumbnail" src="" alt="Thumbnail">
-          <span id="video-duration" class="duration-badge">0:00</span>
-          <span id="platform-badge" class="platform-badge youtube">YouTube</span>
-        </div>
-        
-        <div class="video-details">
-          <div class="title-edit-container">
-            <label for="video-title-input" class="edit-label">Tên file lưu:</label>
-            <input type="text" id="video-title-input" class="video-title-input" value="Tên video..." placeholder="Nhập tên file lưu...">
-          </div>
-          <p id="video-uploader" class="video-uploader">Kênh: Uploader</p>
-        </div>
-
-        <!-- Download Options -->
-        <div class="download-options">
-          <div class="option-row">
-            <label for="select-format">Định dạng:</label>
-            <select id="select-format">
-              <option value="mp4">Video (MP4)</option>
-              <option value="mp3">Audio (MP3)</option>
-              <option value="ogg">Audio (OGG)</option>
-              <option value="gif">Ảnh động (GIF)</option>
-            </select>
+        <!-- Video Info Card (Hidden by default) -->
+        <section id="video-info-card" class="video-info-card hidden">
+          <div class="thumbnail-wrapper">
+            <img id="video-thumbnail" src="" alt="Thumbnail">
+            <span id="video-duration" class="duration-badge">0:00</span>
+            <span id="platform-badge" class="platform-badge youtube">YouTube</span>
           </div>
           
-          <div class="option-row" id="resolution-row">
-            <label for="select-resolution">Độ phân giải:</label>
-            <select id="select-resolution">
-              <option value="best">Cao nhất (Tốt nhất)</option>
-              <option value="1080p">1080p (Full HD)</option>
-              <option value="720p">720p (HD)</option>
-              <option value="480p">480p (SD)</option>
-            </select>
+          <div class="video-details">
+            <div class="title-edit-container">
+              <label for="video-title-input" class="edit-label">Tên file lưu:</label>
+              <input type="text" id="video-title-input" class="video-title-input" value="Tên video..." placeholder="Nhập tên file lưu...">
+            </div>
+            <p id="video-uploader" class="video-uploader">Kênh: Uploader</p>
           </div>
-        </div>
 
-        <button id="btn-download" class="btn-primary btn-glow">
-          <span>Tải xuống ngay</span>
-        </button>
-      </section>
+          <!-- Download Options -->
+          <div class="download-options">
+            <div class="option-row">
+              <label for="select-format">Định dạng:</label>
+              <select id="select-format">
+                <option value="mp4">Video (MP4)</option>
+                <option value="mp3">Audio (MP3)</option>
+                <option value="ogg">Audio (OGG)</option>
+                <option value="gif">Ảnh động (GIF)</option>
+              </select>
+            </div>
+            
+            <div class="option-row" id="resolution-row">
+              <label for="select-resolution">Độ phân giải:</label>
+              <select id="select-resolution">
+                <option value="best">Cao nhất (Tốt nhất)</option>
+                <option value="1080p">1080p (Full HD)</option>
+                <option value="720p">720p (HD)</option>
+                <option value="480p">480p (SD)</option>
+              </select>
+            </div>
+          </div>
+
+          <button id="btn-download" class="btn-primary btn-glow">
+            <span>Tải xuống ngay</span>
+          </button>
+        </section>
+      </div>
+
+      <!-- Converter Tab Content (Hidden by default) -->
+      <div id="converter-tab-content" class="tab-content-wrapper hidden">
+        <section class="converter-section">
+          <!-- Dropzone -->
+          <div class="dropzone" id="dropzone">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="dropzone-icon">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            <p class="dropzone-text">Kéo thả tệp video vào đây hoặc</p>
+            <button class="btn-secondary" id="btn-browse-file">Chọn tệp video</button>
+            <input type="file" id="file-input" accept="video/*" class="hidden">
+          </div>
+
+          <!-- File Convert Options (Hidden by default until file is selected) -->
+          <div id="convert-options-card" class="video-info-card hidden">
+            <div class="selected-file-details">
+              <div class="file-icon-wrapper">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="file-icon">
+                  <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+                  <line x1="7" y1="2" x2="7" y2="22"></line>
+                  <line x1="17" y1="2" x2="17" y2="22"></line>
+                  <line x1="2" y1="12" x2="22" y2="12"></line>
+                  <line x1="2" y1="7" x2="7" y2="7"></line>
+                  <line x1="2" y1="17" x2="7" y2="17"></line>
+                  <line x1="17" y1="17" x2="22" y2="17"></line>
+                  <line x1="17" y1="7" x2="22" y2="7"></line>
+                </svg>
+              </div>
+              <div class="file-info-text">
+                <div class="title-edit-container">
+                  <label for="convert-title-input" class="edit-label">Tên file lưu:</label>
+                  <input type="text" id="convert-title-input" class="video-title-input" value="" placeholder="Tên tệp nhạc...">
+                </div>
+                <p id="selected-file-size" class="video-uploader">Kích thước: 0.0 MB</p>
+              </div>
+            </div>
+
+            <!-- Convert Options -->
+            <div class="download-options">
+              <div class="option-row">
+                <label for="convert-select-format">Định dạng:</label>
+                <select id="convert-select-format">
+                  <option value="mp3">Audio (MP3)</option>
+                  <option value="ogg">Audio (OGG)</option>
+                </select>
+              </div>
+            </div>
+
+            <button id="btn-start-convert" class="btn-primary btn-glow">
+              <span>Bắt đầu chuyển đổi</span>
+            </button>
+          </div>
+        </section>
+      </div>
 
       <!-- Progress Section (Hidden by default) -->
       <section id="progress-card" class="progress-card hidden">
