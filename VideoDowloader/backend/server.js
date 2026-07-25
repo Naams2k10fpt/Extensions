@@ -126,20 +126,6 @@ app.post('/api/download', async (req, res) => {
 
       // If finished or failed, clean up clients and record after a short delay
       if (progressData.status === 'completed' || progressData.status === 'failed') {
-        // Auto-open folder if completed (optional, or let user click button. We will open it auto as well!)
-        if (progressData.status === 'completed') {
-          const platform = getPlatform(url);
-          const downloadBaseDir = process.env.DOWNLOAD_DIR || path.join(process.env.USERPROFILE || process.env.HOME || '.', 'Videos', 'ExtensionVideos');
-          const platformDir = path.join(downloadBaseDir, platform);
-          if (process.platform === 'win32') {
-            try {
-              spawn('explorer.exe', [platformDir], { detached: true, stdio: 'ignore' }).unref();
-            } catch (err) {
-              console.error('[Server] Failed to open folder:', err.message);
-            }
-          }
-        }
-
         setTimeout(() => {
           if (activeDownloads[downloadId]) {
             activeDownloads[downloadId].clients.forEach((clientRes) => clientRes.end());
@@ -312,15 +298,6 @@ app.post('/api/convert', (req, res) => {
           message: 'Chuyển đổi thành công!',
           filePath: finalFilePath
         });
-
-        // Auto open folder in Windows Explorer
-        if (process.platform === 'win32') {
-          try {
-            spawn('explorer.exe', [targetDir], { detached: true, stdio: 'ignore' }).unref();
-          } catch (err) {
-             console.error('[Server] Failed to open audio folder after convert:', err.message);
-          }
-        }
       }
 
       // Short delay before closing SSE clients
