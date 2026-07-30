@@ -68,6 +68,19 @@
           <span class="slider"></span>
         </label>
       </div>
+
+      <!-- Cấu hình quét chữ từ ảnh OCR -->
+      <div class="setting-item">
+        <div class="setting-info">
+          <span class="setting-label">Nhận diện chữ từ ảnh (OCR)</span>
+          <span class="setting-desc">Dành cho truyện dạng ảnh (như Glucose TL)</span>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="ocr-enabled">
+          <span class="slider"></span>
+        </label>
+      </div>
+
     </main>
 
     <div class="action-section">
@@ -77,12 +90,22 @@
       </button>
     </div>
 
+    <!-- Lịch sử sao chép -->
+    <div class="history-section">
+      <div class="section-title">
+        <span>📋</span> Lịch sử sao chép (Gần nhất)
+      </div>
+      <div id="history-list" class="history-list">
+        <div class="empty-history">Chưa có lịch sử sao chép.</div>
+      </div>
+    </div>
+
     <footer class="footer">
       <div class="status-indicator">
         <span class="dot pulse"></span>
         <span class="status-text">Đang hoạt động</span>
       </div>
-      <span class="version">v1.0.0</span>
+      <span class="version">v1.1.0</span>
     </footer>
   </div>
   <script src="popup.js"></script>
