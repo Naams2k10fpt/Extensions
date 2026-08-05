@@ -12,6 +12,15 @@ const getCustomYtDlpPath = () => {
   return path.join(__dirname, '..', 'bin', fileName);
 };
 
+// Helper to extract clean error message from stderr (filtering out warnings)
+function getCleanErrorMessage(errorOutput, defaultMsg) {
+  if (!errorOutput) return defaultMsg;
+  const lines = errorOutput.split('\n')
+    .map(line => line.trim())
+    .filter(line => line && !line.startsWith('WARNING:'));
+  return lines[0] || defaultMsg;
+}
+
 // Identify platform from URL
 function getPlatform(url) {
   const lowercaseUrl = url.toLowerCase();
@@ -53,6 +62,9 @@ function getVideoInfo(url, skipCookies = false) {
     
     const args = ['--dump-json', '--no-playlist'];
     
+    // Add Node.js runtime path dynamically to avoid JavaScript runtime warning/errors
+    args.push('--js-runtimes', `node:${process.execPath}`);
+    
     if (!skipCookies) {
       // Check for cookies.txt file or environment browser cookies setting
       const cookiesPathRoot = path.join(__dirname, '..', '..', 'cookies.txt');
@@ -89,7 +101,7 @@ function getVideoInfo(url, skipCookies = false) {
           return resolve(getVideoInfo(url, true));
         }
         console.error(`[Downloader] yt-dlp failed with code ${code}. Error: ${stderrData}`);
-        return reject(new Error(`Failed to retrieve video information: ${stderrData.split('\n')[0] || 'Unknown error'}`));
+        return reject(new Error(`Failed to retrieve video information: ${getCleanErrorMessage(stderrData, 'Unknown error')}`));
       }
 
       try {
@@ -319,6 +331,9 @@ function downloadVideo(url, options = {}, progressCallback, skipCookies = false)
 
     const args = [];
 
+    // Add Node.js runtime path dynamically to avoid JavaScript runtime warning/errors
+    args.push('--js-runtimes', `node:${process.execPath}`);
+
     if (!skipCookies) {
       // Check for cookies.txt file or environment browser cookies setting
       const cookiesPathRoot = path.join(__dirname, '..', '..', 'cookies.txt');
@@ -446,7 +461,7 @@ function downloadVideo(url, options = {}, progressCallback, skipCookies = false)
           return resolve(downloadVideo(url, options, progressCallback, true));
         }
         console.error(`[Downloader] Download process failed with code ${code}. Error: ${errorOutput}`);
-        return reject(new Error(errorOutput.split('\n')[0] || `Download process exited with code ${code}`));
+        return reject(new Error(getCleanErrorMessage(errorOutput, `Download process exited with code ${code}`)));
       }
 
       console.log(`[Downloader] Download process completed successfully.`);
