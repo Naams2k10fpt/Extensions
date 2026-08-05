@@ -362,7 +362,8 @@ function listenToProgress(downloadId) {
         setTimeout(() => {
           progressCard.classList.add('hidden');
           successCard.classList.remove('hidden');
-          if (isConvertMode) {
+          const isAudioDownload = selectFormat.value === 'mp3' || selectFormat.value === 'ogg';
+          if (isConvertMode || isAudioDownload) {
             successFilepath.textContent = `Đã lưu vào thư mục Music/audio/`;
           } else {
             successFilepath.textContent = `Đã lưu vào thư mục Videos/ExtensionVideos/${currentPlatform}/`;
@@ -414,7 +415,8 @@ function updateProgress(percent, status, statusText, message) {
 // API Call: Open download folder
 async function openDownloadFolder() {
   try {
-    const targetPlatform = isConvertMode ? 'audio' : currentPlatform;
+    const isAudioDownload = selectFormat.value === 'mp3' || selectFormat.value === 'ogg';
+    const targetPlatform = (isConvertMode || isAudioDownload) ? 'audio' : currentPlatform;
     await fetch(`${BACKEND_URL}/api/open-folder`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
