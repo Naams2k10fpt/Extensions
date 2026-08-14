@@ -45,11 +45,47 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Key: downloadId, Value: { progress, status, message, clients: [] }
 const activeDownloads = {};
 
+// Function to update yt-dlp in background
+function updateYtDlp() {
+  const isWindows = process.platform === 'win32';
+  const fileName = isWindows ? 'yt-dlp.exe' : 'yt-dlp';
+  const ytDlpPath = path.join(__dirname, 'bin', fileName);
+
+  if (!fs.existsSync(ytDlpPath)) return;
+
+  writeLog('INFO', 'Checking for yt-dlp updates in background...');
+  console.log('[Server] Checking for yt-dlp updates...');
+
+  const updateProcess = spawn(ytDlpPath, ['-U']);
+  let output = '';
+  let errorOutput = '';
+
+  updateProcess.stdout.on('data', (data) => {
+    output += data.toString();
+  });
+
+  updateProcess.stderr.on('data', (data) => {
+    errorOutput += data.toString();
+  });
+
+  updateProcess.on('close', (code) => {
+    if (code === 0) {
+      writeLog('SUCCESS', `yt-dlp update check finished. Output: ${output.trim()}`);
+      console.log(`[Server] yt-dlp update check completed: ${output.trim()}`);
+    } else {
+      writeLog('ERROR', `yt-dlp update check failed with code ${code}. Error: ${errorOutput.trim()}`);
+      console.error(`[Server] yt-dlp update check failed: ${errorOutput.trim()}`);
+    }
+  });
+}
+
 // Auto-setup yt-dlp on startup
 console.log('[Server] Starting setup check...');
 downloadYtDlp()
   .then((filePath) => {
     console.log(`[Server] yt-dlp setup complete. Path: ${filePath}`);
+    // Check for updates in background asynchronously after 2 seconds
+    setTimeout(updateYtDlp, 2000);
   })
   .catch((err) => {
     console.error('[Server] Critical: Failed to download yt-dlp on startup.', err.message);
@@ -365,6 +401,40 @@ app.post('/api/open-folder', (req, res) => {
   } else {
     res.status(501).json({ error: 'Not supported on this platform' });
   }
+});
+
+// API: Check and update yt-dlp manually
+app.post('/api/check-update', (req, res) => {
+  const isWindows = process.platform === 'win32';
+  const fileName = isWindows ? 'yt-dlp.exe' : 'yt-dlp';
+  const ytDlpPath = path.join(__dirname, 'bin', fileName);
+
+  if (!fs.existsSync(ytDlpPath)) {
+    return res.status(400).json({ error: 'yt-dlp is not installed yet.' });
+  }
+
+  writeLog('INFO', 'Manual update request received.');
+  const updateProcess = spawn(ytDlpPath, ['-U']);
+  let output = '';
+  let errorOutput = '';
+
+  updateProcess.stdout.on('data', (data) => {
+    output += data.toString();
+  });
+
+  updateProcess.stderr.on('data', (data) => {
+    errorOutput += data.toString();
+  });
+
+  updateProcess.on('close', (code) => {
+    if (code === 0) {
+      writeLog('SUCCESS', `Manual update check completed. Output: ${output.trim()}`);
+      res.json({ success: true, message: output.trim() });
+    } else {
+      writeLog('ERROR', `Manual update check failed. Error: ${errorOutput.trim()}`);
+      res.status(500).json({ error: errorOutput.trim() || 'Failed to check updates.' });
+    }
+  });
 });
 
 // API: Heartbeat ping from front-end to keep server alive

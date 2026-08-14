@@ -39,6 +39,7 @@ const convertTitleInput = document.getElementById('convert-title-input');
 const selectedFileSize = document.getElementById('selected-file-size');
 const convertSelectFormat = document.getElementById('convert-select-format');
 const btnStartConvert = document.getElementById('btn-start-convert');
+const btnCheckUpdate = document.getElementById('btn-check-update');
 
 const progressCard = document.getElementById('progress-card');
 const progressStatusText = document.getElementById('progress-status-text');
@@ -199,6 +200,10 @@ function autoFillCurrentTabUrl() {
 
   // Start conversion button click
   btnStartConvert.addEventListener('click', startConversion);
+
+  // Check update button click
+  btnCheckUpdate.addEventListener('click', checkYtDlpUpdate);
+}
 
 // State display management
 function showInputSection() {
@@ -497,4 +502,38 @@ function startConversion() {
   };
 
   xhr.send(selectedFile);
+}
+
+async function checkYtDlpUpdate() {
+  if (btnCheckUpdate.classList.contains('updating')) return;
+
+  btnCheckUpdate.classList.add('updating');
+  btnCheckUpdate.setAttribute('disabled', 'true');
+  btnCheckUpdate.title = 'Đang kiểm tra cập nhật...';
+
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/check-update`, {
+      method: 'POST'
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      const msg = data.message || '';
+      if (msg.includes('is up to date')) {
+        alert('Bộ tải (yt-dlp) đã ở phiên bản mới nhất!');
+      } else {
+        alert(`Cập nhật bộ tải thành công!\n\nChi tiết:\n${msg}`);
+      }
+    } else {
+      alert(`Lỗi khi kiểm tra cập nhật: ${data.error || 'Lỗi không xác định'}`);
+    }
+  } catch (err) {
+    console.error('Lỗi kết nối API check-update:', err);
+    alert('Không thể kết nối tới máy chủ backend để kiểm tra cập nhật.');
+  } finally {
+    btnCheckUpdate.classList.remove('updating');
+    btnCheckUpdate.removeAttribute('disabled');
+    btnCheckUpdate.title = 'Cập nhật bộ tải (yt-dlp)';
+  }
 }
